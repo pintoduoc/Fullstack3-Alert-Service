@@ -9,11 +9,11 @@ import org.springframework.web.client.RestTemplate;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 @Service
 public class ReportClient {
-    // Instanciamos RestTemplate para hacer la llamada HTTP [cite: 109]
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private final String reportServiceBaseUrl;
 
-    public ReportClient(@Value("${report-service.base-url}") String reportServiceBaseUrl) {
+    public ReportClient(RestTemplate restTemplate, @Value("${report-service.base-url}") String reportServiceBaseUrl) {
+        this.restTemplate = restTemplate;
         this.reportServiceBaseUrl = reportServiceBaseUrl;
     }
 
