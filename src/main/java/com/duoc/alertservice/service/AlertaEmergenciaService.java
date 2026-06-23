@@ -4,6 +4,8 @@ import com.duoc.alertservice.client.ReportClient;
 import com.duoc.alertservice.dto.ReporteIncendioDTO;
 import com.duoc.alertservice.model.AlertaEmergencia;
 import com.duoc.alertservice.repository.AlertaEmergenciaRepository;
+import com.duoc.alertservice.strategy.NivelRiesgoContext;
+import com.duoc.alertservice.strategy.NivelRiesgoStrategy;
 
 import org.springframework.stereotype.Service;
 
@@ -14,10 +16,12 @@ import java.util.List;
 public class AlertaEmergenciaService {
     private final AlertaEmergenciaRepository alertaEmergenciaRepository;
     private final ReportClient reportClient;
+    private final NivelRiesgoContext nivelRiesgoContext;
 
     public AlertaEmergenciaService(AlertaEmergenciaRepository alertaEmergenciaRepository, ReportClient reportClient) {
         this.alertaEmergenciaRepository = alertaEmergenciaRepository;
         this.reportClient = reportClient;
+        this.nivelRiesgoContext = new NivelRiesgoContext();
     }
 
     public List<AlertaEmergencia> findAll() {
@@ -68,22 +72,10 @@ public class AlertaEmergenciaService {
         // Asumiendo que tu entidad tiene un campo fecha (recomendado)
         nuevaAlerta.setFechaEmision(LocalDateTime.now());
 
-        // 3. Aplicar lógica de negocio basada en la respuesta (DTO)
-        if ("DESCONOCIDO".equals(estadoReporte)) {
-            // Caso donde actuó el Circuit Breaker (Fallback method)
-            nuevaAlerta.setNivelRiesgo(AlertaEmergencia.NivelRiesgo.PREVENTIVO);
-            nuevaAlerta.setMensajeAlerta("Alerta Preventiva (Sin conexion al origen): " + descripcionReporte);
-
-        } else if ("EN_COMBATE".equals(estadoReporte)) {
-            // Caso crítico real
-            nuevaAlerta.setNivelRiesgo(AlertaEmergencia.NivelRiesgo.CATASTROFE);
-            nuevaAlerta.setMensajeAlerta("ALERTA DE EVACUACION: " + descripcionReporte);
-
-        } else {
-            // Otros estados
-            nuevaAlerta.setNivelRiesgo(AlertaEmergencia.NivelRiesgo.PREVENTIVO);
-            nuevaAlerta.setMensajeAlerta("Incidente en observacion: " + descripcionReporte);
-        }
+        // 3. Aplicar Strategy Pattern para determinar nivel de riesgo y mensaje
+        NivelRiesgoStrategy strategy = nivelRiesgoContext.getStrategy(estadoReporte);
+        nuevaAlerta.setNivelRiesgo(strategy.determinarNivelRiesgo());
+        nuevaAlerta.setMensajeAlerta(strategy.generarMensaje(descripcionReporte));
 
         // 4. Guardar en la base de datos usando tu propio método 'save'
         return this.save(nuevaAlerta);
